@@ -8,3 +8,7 @@ The three buttons beneath the LCD allow for fingerprints to be added or deleted 
 
 ## Circuit Diagram
 ![circuit diagram](fp_lock_wiring_diagram_with_fp.png)
+
+## Parts
+![lock_housing_outside](lock_housing_outside.png) ![lock_housing_inside](lock_housing_inside.png)
+![lock_adapter_outside](lock_adapter_outside.png) ![lock_adapter_inside](lock_adapter_inside.png) 
