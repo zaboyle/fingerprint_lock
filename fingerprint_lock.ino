@@ -15,32 +15,24 @@
 
 #include <Adafruit_Fingerprint.h>
 #include <Servo.h>
+#include <LiquidCrystal.h>
 
 //create the servo instance
 Servo myservo;
 
 // pin #2 is IN from sensor (GREEN wire)
-const int FP_GREEN_WIRE_PIN = 2;
+const int FP_GREEN_WIRE_PIN = 7;
 // pin #3 is OUT from arduino  (WHITE wire)
-const int FP_WHITE_WIRE_PIN = 3;
+const int FP_WHITE_WIRE_PIN = 6;
 
 //button pins
-const int enroll_btn_pin = 4;
-const int delete_btn_pin = 7;
-const int cancel_btn_pin = 8;
-const int inside_unlock_btn_pin = 12;
+const int enroll_btn_pin = A5;
+const int delete_btn_pin = A4;
+const int cancel_btn_pin = A3;
+const int inside_unlock_btn_pin = A2;
 
 //lcd pins
-  //TODO
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
 //servo pins
 const int servo_pin = 9;
@@ -54,7 +46,7 @@ bool inside_unlock_btn_pressed = false;
 //confidence threshold
 const int conf_threshold = 80;
 //wait time for keeping door unlocked (in milliseconds)
-const int unlock_time = 2000;
+const int unlock_time = 5000;
 //names by ID
 const String people[15] = {
                     "Zach", 
@@ -83,6 +75,8 @@ const String people[15] = {
 SoftwareSerial mySerial(FP_GREEN_WIRE_PIN, FP_WHITE_WIRE_PIN);
 
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
 
 void setup()
 {
@@ -92,25 +86,19 @@ void setup()
   pinMode(cancel_btn_pin, INPUT);
   pinMode(inside_unlock_btn_pin, INPUT);
 
-  //lcd pins
-  //TODO
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
-  //
+  //lcd
+  lcd.begin(16,2);
+  lcd.print("Welcome to ");
+  lcd.setCursor(0,1);
+  lcd.print("Zach's FP lock!");
 
   //servo
   myservo.attach(servo_pin);
   
   Serial.begin(9600);
-  while (!Serial);  // For Yun/Leo/Micro/Zero/...
+  //while (!Serial);  // For Yun/Leo/Micro/Zero/...
   delay(100);
-  Serial.println("\n\nZach's fingerprint lock script");
+  //Serial.println("\n\nZach's fingerprint lock script");
 
   // set the data rate for the sensor serial port
   finger.begin(57600);
@@ -148,12 +136,12 @@ void loop()
     delay(unlock_time);
     lock_door();
   } else {
-    //lcd.print("Waiting for valid finger...");
+    lcd.print("Waiting for FP...");
     getFingerprintIDez(true);
-    //lcd.clear();
   }
 
-  //lcd.clear();
+  lcd.clear();
+
   
   //delay for the fp sensor
   delay(50);
@@ -242,24 +230,29 @@ int getFingerprintIDez(bool print_name) {
   p = finger.fingerFastSearch();
   if (p != FINGERPRINT_OK)  return -1;
 
-  //Serial.print("Found ID #"); Serial.print(finger.fingerID); 
-  //Serial.print(" with confidence of "); Serial.println(finger.confidence);
+  Serial.print("Found ID #"); Serial.print(finger.fingerID); 
+  Serial.print(" with confidence of "); Serial.println(finger.confidence);
 
   //if we have a valid, confident finger
   if(finger.confidence >= conf_threshold && print_name) {
     
-    //lcd.clear();
+    lcd.clear();
     
     //welcome the resident/guest if a high enough confidence was achieved!
     if(finger.fingerID < 5) {
-      //lcd.print("Welcome Home, " + people[finger.fingerID] + "!");
+      lcd.print("Welcome Home, ");
       Serial.print("Welcome Home, ");
     } else if(print_name) {
-      //lcd.print("Welcome, ");
+      lcd.print("Welcome, ");
       Serial.print("Welcome, ");
     }
 
+    //TODO:
+    //FIX PROBLEM WHERE NEWLY ENROLLED PEOPLE'S NAMES ARE INCORRECTLY DISPLAYED
+    lcd.setCursor(0,1);
+    lcd.print(people[finger.fingerID]);
     Serial.print(people[finger.fingerID]);
+    lcd.print("!");
     Serial.println("!");
     
     //unlock the door
@@ -278,33 +271,41 @@ int getFingerprintIDez(bool print_name) {
 void enroll_fp() {
   //print a message telling to enter a valid fingerprint
   Serial.println("Please enter a valid fingerprint to enroll another...");
-  //lcd.print("Please enter a valid fingerprint to enroll another...");
+  lcd.print("Enter a valid FP");
+  lcd.setCursor(0,1);
+  lcd.print("...");
   
   int p = finger.getImage();
   while(p == FINGERPRINT_NOFINGER || p != FINGERPRINT_OK) {
     p = finger.getImage();
     if(digitalRead(cancel_btn_pin)) {
-      //lcd.print("Cancelling new finger enroll...");
+      lcd.clear();
+      lcd.print("Cancelling...");
       Serial.println("Cancelling new finger enroll...");
       return;
       }
   }
+
+  lcd.clear();
   
   if(p != FINGERPRINT_OK) {
     Serial.println("Invalid ID. Cannot enroll a new fingerprint");
-    //lcd.print("Invalid ID. Cannot enroll a new fingerprint");
+    lcd.print("Invalid ID");
     delay(1500);
     return;
   }
 
   Serial.println("Valid ID. Please select the name for the new fingerprint");
-  //lcd.print("Valid ID. Please select the name for the new fingerprint");
+  lcd.print("Please pick name");
   delay(1500);
-  //lcd.clear();
-
+  lcd.clear();
+  
   int i = 0;
   Serial.println("Enroll as " + people[i] + "?");
-  //lcd.print("Enroll as " + people[i] + "?");
+  lcd.print("Enroll as ");
+  lcd.setCursor(0,1);
+  lcd.print(people[i]);
+  lcd.print("?");
   while(true) {
 
     //read the button inputs
@@ -323,13 +324,21 @@ void enroll_fp() {
     if(delete_btn_pressed || cancel_btn_pressed) {
       //ask if the user wants to enroll as this person
       Serial.println("Enroll as " + people[i] + "?");
-      //lcd.print("Enroll as " + people[i] + "?");
+      lcd.clear();
+      lcd.print("Enroll as ");
+      lcd.setCursor(0,1);
+      lcd.print(people[i]);
+      lcd.print("?");
     }
 
     if(enroll_btn_pressed) {
       //confirm that the person will be enrolled with that name
       Serial.println("Enrolling as " + people[i] + "...");
-      //lcd.print("Enrolling as " + people[i] + "...");
+      lcd.clear();
+      lcd.print("Enrolling as ");
+      lcd.setCursor(0,1);
+      lcd.print(people[i]);
+      lcd.print("...");
       break;
     }
     
@@ -344,34 +353,42 @@ void enroll_fp() {
 void delete_fp() {
   //print a message telling to enter a valid fingerprint
   Serial.println("Please enter a valid fingerprint to delete another...");
-  //lcd.print("Please enter a valid fingerprint to delete another...");
+  lcd.clear();
+  lcd.print("Enter a valid FP");
   int p = finger.getImage();
   while(p == FINGERPRINT_NOFINGER || p != FINGERPRINT_OK) {
     p = finger.getImage();
     if(digitalRead(cancel_btn_pin)) {
-      //lcd.print("Cancelling fingerprint delete...");
+      lcd.clear();
+      lcd.print("Cancelling...");
       Serial.println("Cancelling fingerprint delete...");
       return;
       }
   }
 
+  lcd.clear();
+
   //reject if invalid ID
   if(p != FINGERPRINT_OK) {
     Serial.println("Invalid ID. Cannot delete a fingerprint");
-    //lcd.print("Invalid ID. Cannot delete a fingerprint");
+    lcd.print("Invalid ID");
     delay(1500);
     return;
   }
   
 
   Serial.println("Valid ID. Please select the fingerprint to delete");
-  //lcd.print("Valid ID. Please select the fingerprint to delete");
+  lcd.print("Please pick the FP");
+  lcd.setCursor(0,1);
+  lcd.print("to delete");
   delay(1500);
-  //lcd.clear();
+  lcd.clear();
 
   int i = 0;
   Serial.println("Delete " + people[i] + "?");
-  //lcd.print("Delete " + people[i] + "?");
+  lcd.print("Delete ");
+  lcd.print(people[i]);
+  lcd.print("?");
   while(true) {
 
     //read the button inputs
@@ -390,13 +407,20 @@ void delete_fp() {
     if(delete_btn_pressed || cancel_btn_pressed) {
       //ask if the user wants to enroll as this person
       Serial.println("Delete " + people[i] + "?");
-      //lcd.print("Delete " + people[i] + "?");
+      lcd.clear();
+      lcd.print("Delete ");
+      lcd.print(people[i]);
+      lcd.print("?");
     }
 
     if(enroll_btn_pressed) {
       //confirm that the person will be enrolled with that name
       Serial.println("Deleting " + people[i] + "...");
-      //lcd.print("Deleting " + people[i] + "...");
+      lcd.clear();
+      lcd.print("Deleting ");
+      lcd.setCursor(0,1);
+      lcd.print(people[i]);
+      lcd.print("...");
       break;
     }
     
@@ -431,10 +455,13 @@ void lock_door() {
 
 //actually enrolls a fingerprint
 void enroll(int id) {
-  //lcd.clear();
+  lcd.clear();
   int p = -1;
   Serial.print("Waiting for valid finger to enroll as #"); Serial.println(id);
-  //lcd.print("Waiting for valid finger to enroll as " + people[id - 1]);
+  lcd.print("enter valid FP");
+  lcd.setCursor(0,1);
+  lcd.print("for ");
+  lcd.print(people[id-1]);
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     switch (p) {
@@ -476,14 +503,15 @@ void enroll(int id) {
       Serial.println("Could not find fingerprint features");
       return p;
     default:
-      Serial.println("Unknown error");
+      //Serial.println("Unknown error");
       return p;
   }
   
   Serial.println("Remove finger");
-  //lcd.print("Remove finger");
+  lcd.clear();
+  lcd.print("Remove finger");
   delay(2000);
-  //lcd.clear();
+  lcd.clear();
   p = 0;
   while (p != FINGERPRINT_NOFINGER) {
     p = finger.getImage();
@@ -491,7 +519,9 @@ void enroll(int id) {
   Serial.print("ID "); Serial.println(id);
   p = -1;
   Serial.println("Place same finger again");
-  //lcd.print("Place same finger again");
+  lcd.print("Place ");
+  lcd.setCursor(0,1);
+  lcd.print("same finger");
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     switch (p) {
@@ -555,10 +585,13 @@ void enroll(int id) {
   }   
   
   Serial.print("Fingerprint for "); Serial.println(people[id - 1]);
+  lcd.print("FP for ");
+  lcd.print(people[id-1]);
+  lcd.setCursor(0,1);
   p = finger.storeModel(id);
   if (p == FINGERPRINT_OK) {
     Serial.println("Stored!");
-    //lcd.print("Stored!");
+    lcd.print("Stored!");
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("Communication error");
     return p;
@@ -583,7 +616,11 @@ void deleteFingerprint(int id) {
 
   if (p == FINGERPRINT_OK) {
     Serial.println("Deleted " + people[id - 1] + "'s fingerprint!");
-    //lcd.print("Deleted " + people[id - 1] + "'s fingerprint!");
+    lcd.print("Deleted ");
+    lcd.print(people[id-1]);
+    lcd.print("'s");
+    lcd.setCursor(0,1);
+    lcd.print("fingerprint");
   } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
     Serial.println("Communication error");
     return p;
